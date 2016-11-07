@@ -28,12 +28,6 @@ port p_sda = XS1_PORT_1F;
 #define FXOS8700EQ_OUT_Z_LSB 0x6
 
 
-int count_alive(int i, int j)
-{
-
-}
-
-
 
 /////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -55,45 +49,43 @@ void DataInStream(char infname[], chanend c_out)
     return;
   }
 
-  //Read image line-by-line and send byte by byte to channel c_out
+
+
+  // Read image line-by-line and transfer to a 2d array, life buffer
   for( int y = 0; y < IMHT; y++ ) {
     _readinline( line, IMWD );
-
-
-
-
-
     for( int x = 0; x < IMWD; x++ ) {
-
-
         lifeArray[x][y] = line[x];
+    }}
 
 
-        int counter = 0;
 
 
-          for(int i=(x-1); i <= (x+1) ; i++)
+  for( int y = 0; y < IMHT; y++ ) {
+     for( int x = 0; x < IMWD; x++ ) {
+
+
+
+         // Check each cell of lifeArray to count how many of the adjacent cells are alive
+         int counter = 0;
+          for(int i=x-1; i <= (x+1) ; i++)
           {
-             for(int j=(y-1); j <= (y+1) ; j++)
+             for(int j =y-1; j <= (y+1) ; j++)
              {
                 if ( (i==x) && (j==y) ) continue;
-//                if ( (i<IMHT) && (j<IMWD) &&
-//                     (i>=0)   && (j>=0) )
-//                {
-                    if (lifeArray[MOD(i, 16)][MOD(j, 16)] == 255)
+                if ( (i<IMHT) && (j<IMWD) &&
+                     (i>=0)   && (j>=0) )
+                {
+                    if (lifeArray[i][j] == 255)
                     counter++;
-//                }
+                }
              }
           }
 
-          if (lifeArray[MOD(x+1,16)][y] == 255) {
-              counter++;
-          }
-
-//          printf("-%4.1d", counter);
 
 
 
+         // Depenging on rule of game of life, act accordinglys
          if (lifeArray[x][y] == 255 && counter < 2){
              lifeBuffer[x][y] = 0;
          }
@@ -109,13 +101,21 @@ void DataInStream(char infname[], chanend c_out)
          else lifeBuffer[x][y] = lifeArray[x][y];
 
 
-
+         //Send output byte-by-byte to c_outs
          c_out <: lifeBuffer[x][y];
 
 
-      printf( "-%4.1d : %d ", lifeBuffer[x][y], counter); //show image values
-    }
+
+         //prints out an iterations
+         printf( "-%4.1d ", lifeBuffer[x][y]); //show image values
+
+
+
+     }
+
+
     printf( "\n" );
+
   }
 
   //Close PGM image file
@@ -201,7 +201,7 @@ void orientation( client interface i2c_master_if i2c, chanend toDist) {
   if (result != I2C_REGOP_SUCCESS) {
     printf("I2C write reg failed\n");
   }
-  
+
   // Enable FXOS8700EQ
   result = i2c.write_reg(FXOS8700EQ_I2C_ADDR, FXOS8700EQ_CTRL_REG_1, 0x01);
   if (result != I2C_REGOP_SUCCESS) {
